@@ -1,9 +1,21 @@
 # MasonMate
 
-MasonMate is a web-based academic scheduling tool designed to help students manage
-classes, assignments, exams, and events in a single calendar.
+MasonMate is a web-based academic scheduling tool that helps students manage classes, assignments, deadlines, and events in one place.
 
-Repository Structure
-- Issues: Features and user stories
-- Projects: SCRUM sprint board
-- Wiki: Use case diagram and system documentation
+## Sprint 1 Goal
+Build a working MVP UI for the Unified Academic Calendar feature based on the team storyboard.
+
+## MVP Scope
+- Calendar interface
+- Add event/deadline interaction
+- Navigation and UI behavior consistent with storyboard panels
+
+## Not Yet Implemented
+- Database persistence
+- Full backend/business logic
+
+## Run Locally
+```bash
+cd frontend
+npm install
+npm run dev
