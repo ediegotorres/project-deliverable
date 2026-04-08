@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  courses      Course[]
+  calendarItems CalendarItem[]
+}
+
+model Course {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  name         String
+  color        String         @default("#3174ad")
+  importance   Int            @default(5)
+  calendarItems CalendarItem[]
+}
+
+model CalendarItem {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  courseId         String?
+  course           Course?   @relation(fields: [courseId], references: [id])
+  title            String
+  itemType         String    // 'CLASS', 'ASSIGNMENT', 'EXAM', 'EVENT'
+  startDate        DateTime
+  endDate          DateTime?
+  location         String?
+  notes            String?
+  weightPercentage Float?
+  priorityScore    Float?
+}
