@@ -24,17 +24,19 @@ function getWeekDates() {
 const t = (hour, min = 0) => (hour - START_HOUR) * HOUR_HEIGHT + (min / 60) * HOUR_HEIGHT
 const h = (hrs) => hrs * HOUR_HEIGHT
 
+//connect to database later
 const SAMPLE_EVENTS = {
-  Mon: [{ id: 1, title: 'Team Standup', top: t(9), height: h(0.5), color: '#6c63ff' }, { id: 2, title: 'Lunch', top: t(12), height: h(1), color: '#f59e0b' }],
-  Tue: [{ id: 3, title: 'Design Review', top: t(10), height: h(1.5), color: '#10b981' }, { id: 4, title: 'Client Call', top: t(14), height: h(1), color: '#6c63ff' }],
-  Wed: [{ id: 5, title: 'Sprint Planning', top: t(9), height: h(2), color: '#f59e0b' }, { id: 6, title: 'Retro', top: t(15), height: h(1), color: '#10b981' }],
-  Thu: [{ id: 7, title: '1:1', top: t(11), height: h(1), color: '#6c63ff' }, { id: 8, title: 'Workshop', top: t(13), height: h(1.5), color: '#f59e0b' }],
-  Fri: [{ id: 9, title: 'Demo Day', top: t(10), height: h(2), color: '#10b981' }],
-  Sat: [{ id: 10, title: 'Hackathon', top: t(9), height: h(3), color: '#6c63ff' }],
-  Sun: [{ id: 11, title: 'Planning', top: t(14), height: h(1), color: '#f59e0b' }],
+  Mon: [{ id: 1, title: 'Team Standup', top: t(9), height: h(0.5), color: '#6c63ff', tags: ['Work'] }, { id: 2, title: 'Lunch', top: t(12), height: h(1), color: '#f59e0b', tags: ['Personal', 'Health'] }],
+  Tue: [{ id: 3, title: 'Design Review', top: t(10), height: h(1.5), color: '#10b981', tags: ['Work'] }, { id: 4, title: 'Client Call', top: t(14), height: h(1), color: '#6c63ff', tags: ['Work'] }],
+  Wed: [{ id: 5, title: 'Sprint Planning', top: t(9), height: h(2), color: '#f59e0b', tags: ['Work'] }, { id: 6, title: 'Retro', top: t(15), height: h(1), color: '#10b981', tags: ['Work'] }],
+  Thu: [{ id: 7, title: '1:1', top: t(11), height: h(1), color: '#6c63ff', tags: ['Work'] }, { id: 8, title: 'Workshop', top: t(13), height: h(1.5), color: '#f59e0b', tags: ['Study'] }],
+  Fri: [{ id: 9, title: 'Demo Day', top: t(10), height: h(2), color: '#10b981', tags: ['Work', 'Social'] }],
+  Sat: [{ id: 10, title: 'Hackathon', top: t(9), height: h(3), color: '#6c63ff', tags: ['Study', 'Social'] }],
+  Sun: [{ id: 11, title: 'Planning', top: t(14), height: h(1), color: '#f59e0b', tags: ['Personal'] }],
 }
-
+//should be tied to database later
 const TASKS = ['Review PR #42', 'Update docs', 'Fix auth bug', 'Deploy staging']
+//add the ability to add/remove later
 const TAG_OPTIONS = ['Work', 'Personal', 'Health', 'Study', 'Social']
 
 function MiniCalendar() {
@@ -156,6 +158,10 @@ function AddEventModal({ onClose }) {
 export default function Calendar() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [activeTags, setActiveTags] = useState([])
+
+  const toggleTagFilter = tag =>
+    setActiveTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
 
   return (
     <div className="cal-wrapper">
@@ -174,6 +180,23 @@ export default function Calendar() {
       <div className="cal-body">
         <div className="sidebar">
           <MiniCalendar />
+
+          <div className="filter-section">
+            <span className="filter-title">Filter by Tag</span>
+            <div className="filter-tags">
+              {TAG_OPTIONS.map(tag => (
+                <span
+                  key={tag}
+                  className={`filter-tag ${activeTags.includes(tag) ? 'filter-tag-active' : ''}`}
+                  onClick={() => toggleTagFilter(tag)}
+                >{tag}</span>
+              ))}
+            </div>
+            {activeTags.length > 0 && (
+              <button className="filter-clear" onClick={() => setActiveTags([])}>Clear</button>
+            )}
+          </div>
+
           <ul className="task-list">
             {TASKS.map((t, i) => (
               <li key={i}><span className="checkbox" /> {t}</li>
@@ -214,6 +237,7 @@ export default function Calendar() {
                     ))}
                     {SAMPLE_EVENTS[day]
                       .filter(e => e.title.toLowerCase().includes(search.toLowerCase()))
+                      .filter(e => activeTags.length === 0 || activeTags.some(tag => e.tags.includes(tag)))
                       .map(e => (
                         <div key={e.id} className="event-block"
                           style={{ top: e.top, height: e.height, background: e.color }}>

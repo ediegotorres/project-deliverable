@@ -113,6 +113,55 @@
 .mini-cal-day.today { background: #6c63ff; color: #fff; font-weight: 600; }
 .mini-cal-day.empty { cursor: default; }
 
+/* Tag Filter */
+.filter-section {
+  margin-bottom: 18px;
+}
+.filter-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filter-tag {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  color: #6b7280;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.filter-tag:hover {
+  border-color: #6c63ff;
+  color: #6c63ff;
+}
+.filter-tag-active {
+  background: #6c63ff;
+  color: #fff;
+  border-color: #6c63ff;
+}
+.filter-clear {
+  margin-top: 8px;
+  font-size: 11px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.filter-clear:hover { color: #6c63ff; }
+
 .task-list {
   list-style: none;
   display: flex;
