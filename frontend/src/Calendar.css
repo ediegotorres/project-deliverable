@@ -355,6 +355,16 @@
 }
 .form-row input:focus { border-color: #6c63ff; }
 .form-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #6c63ff; }
+.type-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+.type-select:focus { outline: none; border-color: #6c63ff; }
 
 /* Tags */
 .tag-box {

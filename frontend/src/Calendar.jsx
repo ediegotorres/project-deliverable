@@ -13,10 +13,18 @@ const HOURS = Array.from({ length: 15 }, (_, i) => {
 
 const TYPE_COLORS = {
   assignment: '#6c63ff',
-  exam: '#ef4444',
-  class: '#10b981',
-  personal: '#f59e0b',
+  ASSIGNMENT: '#6c63ff',
+  exam:       '#ef4444',
+  EXAM:       '#ef4444',
+  class:      '#10b981',
+  CLASS:      '#10b981',
+  personal:   '#f59e0b',
+  EVENT:      '#f59e0b',
 }
+
+const TYPE_OPTIONS    = ['class', 'assignment', 'exam', 'personal']
+const PRIORITY_OPTIONS = ['low', 'medium', 'high']
+const TAG_OPTIONS     = ['Work', 'Personal', 'Health', 'Study', 'Social']
 
 function getWeekDates() {
   const today = new Date()
@@ -78,10 +86,6 @@ function MiniCalendar() {
 }
 
 // ─── AddEventModal ─────────────────────────────────────────────────────────────
-const TYPE_OPTIONS = ['assignment', 'exam', 'class', 'personal']
-const PRIORITY_OPTIONS = ['low', 'medium', 'high']
-const TAG_OPTIONS = ['assignment', 'exam', 'class', 'personal']
-
 function AddEventModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
@@ -221,33 +225,30 @@ export default function Calendar() {
     }
   }
 
-  // Fetch events on mount
-  useEffect(() => {
-    fetchData()
-  }, [])
+  useEffect(() => { fetchData() }, [])
 
   const toggleTagFilter = tag =>
     setActiveTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     )
 
-  // Map Firestore events to week-grid format
+  // Map events to week-grid format
   const weekDates = getWeekDates()
-  const firestoreEventsByDay = {}
-  DAYS.forEach(d => { firestoreEventsByDay[d] = [] })
+  const eventsByDay = {}
+  DAYS.forEach(d => { eventsByDay[d] = [] })
 
   events.forEach(ev => {
     const dayLabel = dateToWeekDay(ev.date)
     if (!dayLabel) return
-    const dayEvents = firestoreEventsByDay[dayLabel]
+    const dayEvents = eventsByDay[dayLabel]
     const stackIndex = dayEvents.length
-    firestoreEventsByDay[dayLabel].push({
-      id: ev.id,
-      title: ev.title,
-      top: (8 - START_HOUR) * HOUR_HEIGHT + stackIndex * (HOUR_HEIGHT * 1.2),
-      height: HOUR_HEIGHT * 1,
-      color: TYPE_COLORS[ev.type] || '#6c63ff',
-      tags: [ev.type],
+    eventsByDay[dayLabel].push({
+      id:      ev.id,
+      title:   ev.title,
+      top:     (8 - START_HOUR) * HOUR_HEIGHT + stackIndex * (HOUR_HEIGHT * 1.2),
+      height:  HOUR_HEIGHT * 1,
+      color:   TYPE_COLORS[ev.type] || '#6c63ff',
+      tags:    [ev.type],
       eventId: ev.id,
     })
   })
@@ -289,7 +290,7 @@ export default function Calendar() {
                   key={tag}
                   className={`filter-tag ${activeTags.includes(tag) ? 'filter-tag-active' : ''}`}
                   onClick={() => toggleTagFilter(tag)}
-                >{tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
+                >{tag}</span>
               ))}
             </div>
             {activeTags.length > 0 && (
@@ -297,7 +298,6 @@ export default function Calendar() {
             )}
           </div>
 
-          {/* Firestore event list */}
           <ul className="task-list">
             {events.length === 0 && (
               <li style={{ opacity: 0.5, fontSize: 12 }}>No events yet — add one!</li>
@@ -349,10 +349,10 @@ export default function Calendar() {
               {DAYS.map(day => (
                 <div key={day} className="day-col">
                   <div className="day-events" style={{ height: HOURS.length * HOUR_HEIGHT }}>
-                    {HOURS.map((_, i) => (
-                      <div key={i} className="hour-line" style={{ top: i * HOUR_HEIGHT }} />
+                    {HOURS.map((_, j) => (
+                      <div key={j} className="hour-line" style={{ top: j * HOUR_HEIGHT }} />
                     ))}
-                    {(firestoreEventsByDay[day] || [])
+                    {(eventsByDay[day] || [])
                       .filter(e => e.title.toLowerCase().includes(search.toLowerCase()))
                       .filter(e => activeTags.length === 0 || activeTags.some(tag => e.tags.includes(tag)))
                       .map(e => (
@@ -381,7 +381,12 @@ export default function Calendar() {
         </div>
       </div>
 
-      {showModal && <AddEventModal onClose={() => setShowModal(false)} onSuccess={() => { setShowModal(false); fetchData(); }} />}
+      {showModal && (
+        <AddEventModal
+          onClose={() => setShowModal(false)}
+          onSuccess={() => { setShowModal(false); fetchData() }}
+        />
+      )}
     </div>
   )
 }
