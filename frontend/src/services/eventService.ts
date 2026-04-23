@@ -1,75 +1,62 @@
-import {
-  collection,
-  addDoc,
-  getDocs,
-  doc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-  query,
-  orderBy,
-} from 'firebase/firestore'
-import { db } from '../firebase'
 import type { CalendarEvent } from '../types/Event'
 
-const COLLECTION = 'events'
+const API_BASE = '/api/calendar'
 
-/**
- * Add a new event to Firestore.
- * Returns the new document id.
- */
 export async function addEvent(event: CalendarEvent): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
-    ...event,
-    createdAt: serverTimestamp(),
-  })
-  return ref.id
+  const payload = {
+    title: event.title,
+    itemType: event.type,
+    startDate: new Date(event.date).toISOString(),
+    notes: event.description,
+    // Provide defaults for backend
+    courseId: null,
+    weightPercentage: 0
+  }
+  
+  const res = await fetch(API_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!res.ok) throw new Error('Failed to add event');
+  const data = await res.json();
+  return data.id;
 }
 
-/**
- * Fetch all events from Firestore (one-time read).
- */
 export async function getEvents(): Promise<CalendarEvent[]> {
-  const snapshot = await getDocs(collection(db, COLLECTION))
-  return snapshot.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<CalendarEvent, 'id'>),
-  }))
+  const res = await fetch(API_BASE);
+  if (!res.ok) throw new Error('Failed to fetch events');
+  const data = await res.json();
+  
+  return data.map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    date: item.startDate.split('T')[0],
+    type: item.itemType,
+    description: item.notes || '',
+    priority: 'medium', // Default fallback
+  }));
 }
 
-/**
- * Update an existing event by its Firestore document id.
- */
-export async function updateEvent(
-  id: string,
-  data: Partial<CalendarEvent>
-): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), data as Record<string, unknown>)
+export async function updateEvent(id: string, event: Partial<CalendarEvent>): Promise<void> {
+  const payload: any = {};
+  if (event.title) payload.title = event.title;
+  if (event.type) payload.itemType = event.type;
+  if (event.date) payload.startDate = new Date(event.date).toISOString();
+  if (event.description !== undefined) payload.notes = event.description;
+  
+  const res = await fetch(`${API_BASE}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('Failed to update event');
 }
 
-/**
- * Delete an event by its Firestore document id.
- */
 export async function deleteEvent(id: string): Promise<void> {
-  await deleteDoc(doc(db, COLLECTION, id))
-}
-
-/**
- * Real-time listener on the events collection.
- * Calls `callback` with the updated array whenever data changes.
- * Returns the unsubscribe function for cleanup.
- */
-export function subscribeToEvents(
-  callback: (events: CalendarEvent[]) => void
-): () => void {
-  const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'))
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const events: CalendarEvent[] = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<CalendarEvent, 'id'>),
-    }))
-    callback(events)
-  })
-  return unsubscribe
+  const res = await fetch(`${API_BASE}/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete event');
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Calendar.css'
-import { addEvent, deleteEvent, subscribeToEvents } from './services/eventService'
+import { addEvent, deleteEvent, getEvents } from './services/eventService'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -80,9 +80,9 @@ function MiniCalendar() {
 // ─── AddEventModal ─────────────────────────────────────────────────────────────
 const TYPE_OPTIONS = ['assignment', 'exam', 'class', 'personal']
 const PRIORITY_OPTIONS = ['low', 'medium', 'high']
-const TAG_OPTIONS = ['Work', 'Personal', 'Health', 'Study', 'Social']
+const TAG_OPTIONS = ['assignment', 'exam', 'class', 'personal']
 
-function AddEventModal({ onClose }) {
+function AddEventModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
     date: new Date().toISOString().slice(0, 10),
@@ -109,7 +109,7 @@ function AddEventModal({ onClose }) {
         description: form.description.trim(),
       })
       setForm({ title: '', date: new Date().toISOString().slice(0, 10), type: 'class', priority: 'medium', description: '' })
-      onClose()
+      if (onSuccess) onSuccess()
     } catch (err) {
       console.error('Failed to save event:', err)
       setError('Failed to save. Please try again.')
@@ -165,7 +165,7 @@ function AddEventModal({ onClose }) {
         <div className="form-row">
           <label>Priority</label>
           <div className="priority-row">
-            {PRIORITY_OPTIONS.map((p, n) => (
+            {PRIORITY_OPTIONS.map((p) => (
               <button
                 key={p}
                 id={`priority-${p}`}
@@ -212,10 +212,18 @@ export default function Calendar() {
   const [activeTags, setActiveTags] = useState([])
   const [events, setEvents] = useState([])
 
-  // Subscribe to real-time Firestore events
+  const fetchData = async () => {
+    try {
+      const data = await getEvents()
+      setEvents(data)
+    } catch (err) {
+      console.error('Failed to load events:', err)
+    }
+  }
+
+  // Fetch events on mount
   useEffect(() => {
-    const unsubscribe = subscribeToEvents(setEvents)
-    return unsubscribe
+    fetchData()
   }, [])
 
   const toggleTagFilter = tag =>
@@ -240,14 +248,15 @@ export default function Calendar() {
       height: HOUR_HEIGHT * 1,
       color: TYPE_COLORS[ev.type] || '#6c63ff',
       tags: [ev.type],
-      firestoreId: ev.id,
+      eventId: ev.id,
     })
   })
 
-  const handleDelete = async (firestoreId, e) => {
+  const handleDelete = async (id, e) => {
     e.stopPropagation()
     try {
-      await deleteEvent(firestoreId)
+      await deleteEvent(id)
+      fetchData()
     } catch (err) {
       console.error('Delete failed:', err)
     }
@@ -280,7 +289,7 @@ export default function Calendar() {
                   key={tag}
                   className={`filter-tag ${activeTags.includes(tag) ? 'filter-tag-active' : ''}`}
                   onClick={() => toggleTagFilter(tag)}
-                >{tag}</span>
+                >{tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
               ))}
             </div>
             {activeTags.length > 0 && (
@@ -355,7 +364,7 @@ export default function Calendar() {
                         >
                           <span>{e.title}</span>
                           <button
-                            onClick={ev => handleDelete(e.firestoreId, ev)}
+                            onClick={ev => handleDelete(e.eventId, ev)}
                             style={{
                               background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)',
                               cursor: 'pointer', fontSize: 11, float: 'right', padding: 0,
@@ -372,7 +381,7 @@ export default function Calendar() {
         </div>
       </div>
 
-      {showModal && <AddEventModal onClose={() => setShowModal(false)} />}
+      {showModal && <AddEventModal onClose={() => setShowModal(false)} onSuccess={() => { setShowModal(false); fetchData(); }} />}
     </div>
   )
 }
