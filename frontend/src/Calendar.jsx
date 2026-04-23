@@ -1,17 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './Calendar.css'
+import { addEvent, deleteEvent, subscribeToEvents } from './services/eventService'
 
+// ─── constants ────────────────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const HOUR_HEIGHT = 60 // px per hour
+const HOUR_HEIGHT = 60
 const START_HOUR = 7
 const HOURS = Array.from({ length: 15 }, (_, i) => {
   const h = START_HOUR + i
   return h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
 })
 
+const TYPE_COLORS = {
+  assignment: '#6c63ff',
+  exam: '#ef4444',
+  class: '#10b981',
+  personal: '#f59e0b',
+}
+
 function getWeekDates() {
   const today = new Date()
-  const day = (today.getDay() + 6) % 7 // Mon=0
+  const day = (today.getDay() + 6) % 7
   const monday = new Date(today)
   monday.setDate(today.getDate() - day)
   return Array.from({ length: 7 }, (_, i) => {
@@ -21,53 +30,42 @@ function getWeekDates() {
   })
 }
 
-const t = (hour, min = 0) => (hour - START_HOUR) * HOUR_HEIGHT + (min / 60) * HOUR_HEIGHT
-const h = (hrs) => hrs * HOUR_HEIGHT
-
-//connect to database later
-const SAMPLE_EVENTS = {
-  Mon: [{ id: 1, title: 'Team Standup', top: t(9), height: h(0.5), color: '#6c63ff', tags: ['Work'] }, { id: 2, title: 'Lunch', top: t(12), height: h(1), color: '#f59e0b', tags: ['Personal', 'Health'] }],
-  Tue: [{ id: 3, title: 'Design Review', top: t(10), height: h(1.5), color: '#10b981', tags: ['Work'] }, { id: 4, title: 'Client Call', top: t(14), height: h(1), color: '#6c63ff', tags: ['Work'] }],
-  Wed: [{ id: 5, title: 'Sprint Planning', top: t(9), height: h(2), color: '#f59e0b', tags: ['Work'] }, { id: 6, title: 'Retro', top: t(15), height: h(1), color: '#10b981', tags: ['Work'] }],
-  Thu: [{ id: 7, title: '1:1', top: t(11), height: h(1), color: '#6c63ff', tags: ['Work'] }, { id: 8, title: 'Workshop', top: t(13), height: h(1.5), color: '#f59e0b', tags: ['Study'] }],
-  Fri: [{ id: 9, title: 'Demo Day', top: t(10), height: h(2), color: '#10b981', tags: ['Work', 'Social'] }],
-  Sat: [{ id: 10, title: 'Hackathon', top: t(9), height: h(3), color: '#6c63ff', tags: ['Study', 'Social'] }],
-  Sun: [{ id: 11, title: 'Planning', top: t(14), height: h(1), color: '#f59e0b', tags: ['Personal'] }],
+// Convert a YYYY-MM-DD date string to the Mon/Tue/… day label for this week
+function dateToWeekDay(dateStr) {
+  const weekDates = getWeekDates()
+  const idx = weekDates.findIndex(
+    (d) => d.toISOString().slice(0, 10) === dateStr
+  )
+  return idx >= 0 ? DAYS[idx] : null
 }
-//should be tied to database later
-const TASKS = ['Review PR #42', 'Update docs', 'Fix auth bug', 'Deploy staging']
-//add the ability to add/remove later
-const TAG_OPTIONS = ['Work', 'Personal', 'Health', 'Study', 'Social']
 
+// ─── MiniCalendar ─────────────────────────────────────────────────────────────
 function MiniCalendar() {
   const [cursor, setCursor] = useState(new Date())
   const today = new Date()
-
   const year = cursor.getFullYear()
   const month = cursor.getMonth()
-
-  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7 // Mon=0
+  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  const prev = () => setCursor(new Date(year, month - 1, 1))
-  const next = () => setCursor(new Date(year, month + 1, 1))
-
   const cells = [...Array(firstDay).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
 
   return (
     <div className="mini-cal">
       <div className="mini-cal-header">
-        <button onClick={prev}>‹</button>
+        <button onClick={() => setCursor(new Date(year, month - 1, 1))}>‹</button>
         <span>{cursor.toLocaleDateString('en', { month: 'short', year: 'numeric' })}</span>
-        <button onClick={next}>›</button>
+        <button onClick={() => setCursor(new Date(year, month + 1, 1))}>›</button>
       </div>
       <div className="mini-cal-grid">
         {['M','T','W','T','F','S','S'].map((d, i) => (
           <span key={i} className="mini-cal-dow">{d}</span>
         ))}
         {cells.map((d, i) => {
-          const isToday = d && d === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+          const isToday =
+            d && d === today.getDate() &&
+            month === today.getMonth() &&
+            year === today.getFullYear()
           return (
             <span key={i} className={`mini-cal-day ${d ? '' : 'empty'} ${isToday ? 'today' : ''}`}>
               {d || ''}
@@ -79,96 +77,189 @@ function MiniCalendar() {
   )
 }
 
+// ─── AddEventModal ─────────────────────────────────────────────────────────────
+const TYPE_OPTIONS = ['assignment', 'exam', 'class', 'personal']
+const PRIORITY_OPTIONS = ['low', 'medium', 'high']
+const TAG_OPTIONS = ['Work', 'Personal', 'Health', 'Study', 'Social']
+
 function AddEventModal({ onClose }) {
   const [form, setForm] = useState({
-    name: '', date: '', start: '', end: '', priority: 3, remind: true, tags: [],
+    title: '',
+    date: new Date().toISOString().slice(0, 10),
+    type: 'class',
+    priority: 'medium',
+    description: '',
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
-  const toggleTag = tag =>
-    set('tags', form.tags.includes(tag) ? form.tags.filter(t => t !== tag) : [...form.tags, tag])
+  const handleSubmit = async () => {
+    if (!form.title.trim()) { setError('Title is required.'); return }
+    if (!form.date) { setError('Date is required.'); return }
+    setError('')
+    setLoading(true)
+    try {
+      await addEvent({
+        title: form.title.trim(),
+        date: form.date,
+        type: form.type,
+        priority: form.priority,
+        description: form.description.trim(),
+      })
+      setForm({ title: '', date: new Date().toISOString().slice(0, 10), type: 'class', priority: 'medium', description: '' })
+      onClose()
+    } catch (err) {
+      console.error('Failed to save event:', err)
+      setError('Failed to save. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3>Add Event</h3>
 
+        {error && <p style={{ color: '#ef4444', marginBottom: 8, fontSize: 13 }}>{error}</p>}
+
         <div className="form-row">
-          <label>Event Name</label>
-          <input value={form.name} onChange={e => set('name', e.target.value)} autoFocus />
+          <label>Event Title</label>
+          <input
+            id="event-title"
+            value={form.title}
+            onChange={e => set('title', e.target.value)}
+            autoFocus
+            placeholder="e.g. CS 471 Final Exam"
+            disabled={loading}
+          />
         </div>
 
         <div className="form-row">
-          <label>Tags</label>
+          <label>Date</label>
+          <input
+            id="event-date"
+            type="date"
+            value={form.date}
+            onChange={e => set('date', e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        <div className="form-row">
+          <label>Type</label>
           <div className="tag-box">
-            {TAG_OPTIONS.map(t => (
+            {TYPE_OPTIONS.map(t => (
               <span
                 key={t}
-                className={`tag ${form.tags.includes(t) ? 'tag-active' : ''}`}
-                onClick={() => toggleTag(t)}
+                id={`type-${t}`}
+                className={`tag ${form.type === t ? 'tag-active' : ''}`}
+                onClick={() => !loading && set('type', t)}
               >{t}</span>
             ))}
           </div>
         </div>
 
         <div className="form-row">
-          <label>Date</label>
-          <input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
-        </div>
-
-        <div className="form-row">
-          <label>Start</label>
-          <input type="time" value={form.start} onChange={e => set('start', e.target.value)} />
-        </div>
-
-        <div className="form-row">
-          <label>End</label>
-          <input type="time" value={form.end} onChange={e => set('end', e.target.value)} />
-        </div>
-
-        <div className="form-row">
           <label>Priority</label>
           <div className="priority-row">
-            {[1, 2, 3, 4, 5].map(n => (
+            {PRIORITY_OPTIONS.map((p, n) => (
               <button
-                key={n}
-                className={`priority-dot ${form.priority === n ? 'priority-active' : ''}`}
-                onClick={() => set('priority', n)}
-                title={`Priority ${n}`}
+                key={p}
+                id={`priority-${p}`}
+                className={`priority-dot ${form.priority === p ? 'priority-active' : ''}`}
+                onClick={() => !loading && set('priority', p)}
+                title={p}
+                disabled={loading}
               />
             ))}
           </div>
         </div>
 
         <div className="form-row">
-          <label>Remind</label>
-          <input type="checkbox" checked={form.remind} onChange={e => set('remind', e.target.checked)} />
+          <label>Description (optional)</label>
+          <input
+            id="event-description"
+            value={form.description}
+            onChange={e => set('description', e.target.value)}
+            placeholder="Any extra notes…"
+            disabled={loading}
+          />
         </div>
 
         <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button className="primary" onClick={onClose}>Save</button>
+          <button onClick={onClose} disabled={loading}>Cancel</button>
+          <button
+            id="save-event-btn"
+            className="primary"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? 'Saving…' : 'Save'}
+          </button>
         </div>
       </div>
     </div>
   )
 }
 
+// ─── Calendar (main) ──────────────────────────────────────────────────────────
 export default function Calendar() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [activeTags, setActiveTags] = useState([])
+  const [events, setEvents] = useState([])
+
+  // Subscribe to real-time Firestore events
+  useEffect(() => {
+    const unsubscribe = subscribeToEvents(setEvents)
+    return unsubscribe
+  }, [])
 
   const toggleTagFilter = tag =>
-    setActiveTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+    setActiveTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+
+  // Map Firestore events to week-grid format
+  const weekDates = getWeekDates()
+  const firestoreEventsByDay = {}
+  DAYS.forEach(d => { firestoreEventsByDay[d] = [] })
+
+  events.forEach(ev => {
+    const dayLabel = dateToWeekDay(ev.date)
+    if (!dayLabel) return
+    const dayEvents = firestoreEventsByDay[dayLabel]
+    const stackIndex = dayEvents.length
+    firestoreEventsByDay[dayLabel].push({
+      id: ev.id,
+      title: ev.title,
+      top: (8 - START_HOUR) * HOUR_HEIGHT + stackIndex * (HOUR_HEIGHT * 1.2),
+      height: HOUR_HEIGHT * 1,
+      color: TYPE_COLORS[ev.type] || '#6c63ff',
+      tags: [ev.type],
+      firestoreId: ev.id,
+    })
+  })
+
+  const handleDelete = async (firestoreId, e) => {
+    e.stopPropagation()
+    try {
+      await deleteEvent(firestoreId)
+    } catch (err) {
+      console.error('Delete failed:', err)
+    }
+  }
 
   return (
     <div className="cal-wrapper">
       <div className="cal-header">
-        <button className="add-btn" onClick={() => setShowModal(true)}>+ Add event</button>
+        <button id="add-event-btn" className="add-btn" onClick={() => setShowModal(true)}>+ Add event</button>
         <div className="search-bar">
           <input
+            id="search-events"
             placeholder="Search events"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -197,18 +288,36 @@ export default function Calendar() {
             )}
           </div>
 
+          {/* Firestore event list */}
           <ul className="task-list">
-            {TASKS.map((t, i) => (
-              <li key={i}><span className="checkbox" /> {t}</li>
+            {events.length === 0 && (
+              <li style={{ opacity: 0.5, fontSize: 12 }}>No events yet — add one!</li>
+            )}
+            {events.map(ev => (
+              <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>
+                  <span className="checkbox" />
+                  {ev.title}
+                  <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.6 }}>({ev.date})</span>
+                </span>
+                <button
+                  id={`delete-${ev.id}`}
+                  onClick={e => handleDelete(ev.id, e)}
+                  style={{
+                    background: 'none', border: 'none', color: '#ef4444',
+                    cursor: 'pointer', fontSize: 13, padding: '0 4px',
+                  }}
+                  title="Delete event"
+                >✕</button>
+              </li>
             ))}
           </ul>
         </div>
 
         <div className="week-section">
-          {/* Fixed day headers */}
           <div className="week-header">
             <div className="time-gutter-spacer" />
-            {getWeekDates().map((date, i) => {
+            {weekDates.map((date, i) => {
               const isToday = date.toDateString() === new Date().toDateString()
               return (
                 <div key={i} className="day-label">
@@ -219,7 +328,6 @@ export default function Calendar() {
             })}
           </div>
 
-          {/* Scrollable time grid */}
           <div className="week-scroll">
             <div className="time-gutter">
               {HOURS.map((label, i) => (
@@ -235,13 +343,25 @@ export default function Calendar() {
                     {HOURS.map((_, i) => (
                       <div key={i} className="hour-line" style={{ top: i * HOUR_HEIGHT }} />
                     ))}
-                    {SAMPLE_EVENTS[day]
+                    {(firestoreEventsByDay[day] || [])
                       .filter(e => e.title.toLowerCase().includes(search.toLowerCase()))
                       .filter(e => activeTags.length === 0 || activeTags.some(tag => e.tags.includes(tag)))
                       .map(e => (
-                        <div key={e.id} className="event-block"
-                          style={{ top: e.top, height: e.height, background: e.color }}>
-                          {e.title}
+                        <div
+                          key={e.id}
+                          id={`event-block-${e.id}`}
+                          className="event-block"
+                          style={{ top: e.top, height: e.height, background: e.color, cursor: 'pointer' }}
+                        >
+                          <span>{e.title}</span>
+                          <button
+                            onClick={ev => handleDelete(e.firestoreId, ev)}
+                            style={{
+                              background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)',
+                              cursor: 'pointer', fontSize: 11, float: 'right', padding: 0,
+                            }}
+                            title="Delete"
+                          >✕</button>
                         </div>
                       ))}
                   </div>
