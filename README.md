@@ -2,20 +2,45 @@
 
 MasonMate is a web-based academic scheduling tool that helps students manage classes, assignments, deadlines, and events in one place.
 
-## Sprint 1 Goal
-Build a working MVP UI for the Unified Academic Calendar feature based on the team storyboard.
+## Features
+- **Unified Academic Calendar**: See all classes, assignments, exams, and events in one place.
+- **Assignment & Exam Tracking**: Keep track of deadlines across all courses.
+- **Task Prioritization**: Automatically sort assignments based on their grade weight and course importance (powered by the Express backend).
+- **Event Manager**: Track extracurriculars separately but view them alongside academic tasks.
 
-## MVP Scope
-- Calendar interface
-- Add event/deadline interaction
-- Navigation and UI behavior consistent with storyboard panels
+## Tech Stack
+- **Frontend**: React, Vite, CSS
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: SQLite (via Prisma ORM)
 
-## Not Yet Implemented
-- Database persistence
-- Full backend/business logic
+## Local Development Setup
 
-## Run Locally
+To run MasonMate locally, you need to start both the backend server and the frontend client.
+
+### 1. Start the Backend
+
+Open a terminal and run the following commands:
+```bash
+cd backend
+npm install
+# Generate Prisma client and apply database migrations
+npx prisma generate
+npx prisma db push
+# Start the Express server (runs on http://localhost:3001)
+npm run dev
+```
+
+### 2. Start the Frontend
+
+Open a second terminal and run:
 ```bash
 cd frontend
 npm install
+# Start the Vite development server (proxies /api to the backend)
 npm run dev
+```
+
+The application should now be running at `http://localhost:5173`.
+
+## Architecture Note
+This project originally utilized Firebase Firestore for prototyping but has since been fully migrated to a custom Express/Prisma REST API backend with a local SQLite database to support complex prioritization and relational data requirements.
