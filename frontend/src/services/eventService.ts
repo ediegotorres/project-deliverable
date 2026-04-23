@@ -3,12 +3,19 @@ import type { CalendarEvent } from '../types/Event'
 const API_BASE = '/api/calendar'
 
 export async function addEvent(event: CalendarEvent): Promise<string> {
+  const startDate = event.start
+    ? new Date(`${event.date}T${event.start}`).toISOString()
+    : new Date(`${event.date}T08:00`).toISOString() // default to 8 AM local, avoids UTC midnight date shift
+  const endDate = event.end
+    ? new Date(`${event.date}T${event.end}`).toISOString()
+    : null
+
   const payload = {
     title: event.title,
     itemType: event.type,
-    startDate: new Date(event.date).toISOString(),
+    startDate,
+    endDate,
     notes: event.description,
-    // Provide defaults for backend
     courseId: null,
     weightPercentage: 0
   }
@@ -29,14 +36,20 @@ export async function getEvents(): Promise<CalendarEvent[]> {
   if (!res.ok) throw new Error('Failed to fetch events');
   const data = await res.json();
   
-  return data.map((item: any) => ({
-    id: item.id,
-    title: item.title,
-    date: item.startDate.split('T')[0],
-    type: item.itemType,
-    description: item.notes || '',
-    priority: 'medium', // Default fallback
-  }));
+  return data.map((item: any) => {
+    const start = new Date(item.startDate)
+    const end   = item.endDate ? new Date(item.endDate) : null
+    return {
+      id:          item.id,
+      title:       item.title,
+      date:        start.toLocaleDateString('en-CA'), // YYYY-MM-DD in local time
+      startTime:   start,
+      endTime:     end,
+      type:        item.itemType?.toLowerCase() ?? 'event',
+      description: item.notes || '',
+      priority:    'medium',
+    }
+  });
 }
 
 export async function updateEvent(id: string, event: Partial<CalendarEvent>): Promise<void> {

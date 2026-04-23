@@ -431,3 +431,22 @@
   border-color: #6c63ff;
 }
 .modal-actions button.primary:hover { background: #5b52e0; }
+.modal-actions button.danger {
+  background: #fff;
+  color: #ef4444;
+  border-color: #ef4444;
+}
+.modal-actions button.danger:hover { background: #ef4444; color: #fff; }
+
+/* Event Detail — priority badge (reuses .form-row for layout) */
+.detail-priority {
+  display: inline-block;
+  padding: 3px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.detail-priority-low    { background: #d1fae5; color: #065f46; border: 1.5px solid #6ee7b7; }
+.detail-priority-medium { background: #fef3c7; color: #92400e; border: 1.5px solid #fcd34d; }
+.detail-priority-high   { background: #fee2e2; color: #991b1b; border: 1.5px solid #fca5a5; }

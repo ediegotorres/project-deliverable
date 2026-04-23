@@ -42,7 +42,7 @@ function getWeekDates() {
 function dateToWeekDay(dateStr) {
   const weekDates = getWeekDates()
   const idx = weekDates.findIndex(
-    (d) => d.toISOString().slice(0, 10) === dateStr
+    (d) => d.toLocaleDateString('en-CA') === dateStr
   )
   return idx >= 0 ? DAYS[idx] : null
 }
@@ -85,11 +85,66 @@ function MiniCalendar() {
   )
 }
 
+// ─── EventDetailModal ──────────────────────────────────────────────────────────
+function EventDetailModal({ event, onClose, onDelete }) {
+  const fmt = (dt) => dt
+    ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null
+
+  const startFmt = fmt(event.startTime)
+  const endFmt   = fmt(event.endTime)
+  const color    = TYPE_COLORS[event.type] || '#6c63ff'
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ margin: 0 }}>{event.title}</h3>
+          <span className="tag tag-active" style={{ background: color, borderColor: color, marginLeft: 12 }}>
+            {event.type}
+          </span>
+        </div>
+
+        <div className="form-row">
+          <label>Date</label>
+          <span>{new Date(`${event.date}T12:00`).toLocaleDateString('en', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+        </div>
+
+        {startFmt && (
+          <div className="form-row">
+            <label>Time</label>
+            <span>{startFmt}{endFmt ? ` – ${endFmt}` : ''}</span>
+          </div>
+        )}
+
+        <div className="form-row">
+          <label>Priority</label>
+          <span className={`detail-priority detail-priority-${event.priority}`}>{event.priority}</span>
+        </div>
+
+        {event.description && (
+          <div className="form-row">
+            <label>Notes</label>
+            <span style={{ fontSize: 14, color: '#374151' }}>{event.description}</span>
+          </div>
+        )}
+
+        <div className="modal-actions">
+          <button className="danger" onClick={() => onDelete(event.id)}>Delete</button>
+          <button className="primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── AddEventModal ─────────────────────────────────────────────────────────────
 function AddEventModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
     date: new Date().toISOString().slice(0, 10),
+    start: '',
+    end: '',
     type: 'class',
     priority: 'medium',
     description: '',
@@ -108,11 +163,13 @@ function AddEventModal({ onClose, onSuccess }) {
       await addEvent({
         title: form.title.trim(),
         date: form.date,
+        start: form.start,
+        end: form.end,
         type: form.type,
         priority: form.priority,
         description: form.description.trim(),
       })
-      setForm({ title: '', date: new Date().toISOString().slice(0, 10), type: 'class', priority: 'medium', description: '' })
+      setForm({ title: '', date: new Date().toISOString().slice(0, 10), start: '', end: '', type: 'class', priority: 'medium', description: '' })
       if (onSuccess) onSuccess()
     } catch (err) {
       console.error('Failed to save event:', err)
@@ -148,6 +205,28 @@ function AddEventModal({ onClose, onSuccess }) {
             type="date"
             value={form.date}
             onChange={e => set('date', e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        <div className="form-row">
+          <label>Start Time</label>
+          <input
+            id="event-start"
+            type="time"
+            value={form.start}
+            onChange={e => set('start', e.target.value)}
+            disabled={loading}
+          />
+        </div>
+
+        <div className="form-row">
+          <label>End Time</label>
+          <input
+            id="event-end"
+            type="time"
+            value={form.end}
+            onChange={e => set('end', e.target.value)}
             disabled={loading}
           />
         </div>
@@ -213,6 +292,7 @@ function AddEventModal({ onClose, onSuccess }) {
 export default function Calendar() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
   const [activeTags, setActiveTags] = useState([])
   const [events, setEvents] = useState([])
 
@@ -240,23 +320,24 @@ export default function Calendar() {
   events.forEach(ev => {
     const dayLabel = dateToWeekDay(ev.date)
     if (!dayLabel) return
-    const dayEvents = eventsByDay[dayLabel]
-    const stackIndex = dayEvents.length
+    const start = ev.startTime
+    const end   = ev.endTime ?? new Date(start.getTime() + 60 * 60 * 1000) // default 1hr
+    const durationHrs = Math.max((end - start) / (1000 * 60 * 60), 0.5)
     eventsByDay[dayLabel].push({
       id:      ev.id,
       title:   ev.title,
-      top:     (8 - START_HOUR) * HOUR_HEIGHT + stackIndex * (HOUR_HEIGHT * 1.2),
-      height:  HOUR_HEIGHT * 1,
+      top:     Math.max(0, (start.getHours() - START_HOUR) * HOUR_HEIGHT + (start.getMinutes() / 60) * HOUR_HEIGHT),
+      height:  durationHrs * HOUR_HEIGHT,
       color:   TYPE_COLORS[ev.type] || '#6c63ff',
       tags:    [ev.type],
-      eventId: ev.id,
+      raw:     ev,
     })
   })
 
-  const handleDelete = async (id, e) => {
-    e.stopPropagation()
+  const handleDelete = async (id) => {
     try {
       await deleteEvent(id)
+      setSelectedEvent(null)
       fetchData()
     } catch (err) {
       console.error('Delete failed:', err)
@@ -311,7 +392,7 @@ export default function Calendar() {
                 </span>
                 <button
                   id={`delete-${ev.id}`}
-                  onClick={e => handleDelete(ev.id, e)}
+                  onClick={e => { e.stopPropagation(); handleDelete(ev.id) }}
                   style={{
                     background: 'none', border: 'none', color: '#ef4444',
                     cursor: 'pointer', fontSize: 13, padding: '0 4px',
@@ -361,16 +442,9 @@ export default function Calendar() {
                           id={`event-block-${e.id}`}
                           className="event-block"
                           style={{ top: e.top, height: e.height, background: e.color, cursor: 'pointer' }}
+                          onClick={() => setSelectedEvent(e.raw)}
                         >
-                          <span>{e.title}</span>
-                          <button
-                            onClick={ev => handleDelete(e.eventId, ev)}
-                            style={{
-                              background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)',
-                              cursor: 'pointer', fontSize: 11, float: 'right', padding: 0,
-                            }}
-                            title="Delete"
-                          >✕</button>
+                          {e.title}
                         </div>
                       ))}
                   </div>
@@ -385,6 +459,14 @@ export default function Calendar() {
         <AddEventModal
           onClose={() => setShowModal(false)}
           onSuccess={() => { setShowModal(false); fetchData() }}
+        />
+      )}
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          onDelete={handleDelete}
         />
       )}
     </div>
