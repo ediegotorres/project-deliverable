@@ -5,10 +5,12 @@ import { addEvent, deleteEvent, getEvents } from './services/eventService'
 // ─── constants ────────────────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const HOUR_HEIGHT = 60
-const START_HOUR = 7
-const HOURS = Array.from({ length: 15 }, (_, i) => {
-  const h = START_HOUR + i
-  return h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
+const START_HOUR = 0
+const HOURS = Array.from({ length: 24 }, (_, i) => {
+  if (i === 0)  return '12 AM'
+  if (i < 12)   return `${i} AM`
+  if (i === 12) return '12 PM'
+  return `${i - 12} PM`
 })
 
 const TYPE_COLORS = {

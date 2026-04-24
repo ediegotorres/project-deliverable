@@ -196,7 +196,10 @@
   display: flex;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
+  overflow-y: scroll;
+  scrollbar-color: transparent transparent;
 }
+.week-header::-webkit-scrollbar { background: transparent; }
 
 .time-gutter-spacer {
   width: 56px;
@@ -207,7 +210,9 @@
 .week-scroll {
   display: flex;
   flex: 1;
-  overflow: auto;
+  overflow-y: scroll;
+  overflow-x: auto;
+  align-items: flex-start;
 }
 
 .time-gutter {
@@ -245,6 +250,7 @@
   flex: 1;
   min-width: 90px;
   border-right: 1px solid #e5e7eb;
+  min-height: 100%;
 }
 .day-col:last-child { border-right: none; }
 
