@@ -10,6 +10,8 @@ export async function addEvent(event: CalendarEvent): Promise<string> {
     ? new Date(`${event.date}T${event.end}`).toISOString()
     : null
 
+  const priorityMap: Record<string, number> = { low: 1, medium: 2, high: 3 }
+
   const payload = {
     title: event.title,
     itemType: event.type,
@@ -17,7 +19,8 @@ export async function addEvent(event: CalendarEvent): Promise<string> {
     endDate,
     notes: event.description,
     courseId: null,
-    weightPercentage: 0
+    weightPercentage: 0,
+    priorityScore: priorityMap[event.priority] ?? 2,
   }
   
   const res = await fetch(API_BASE, {
@@ -47,7 +50,7 @@ export async function getEvents(): Promise<CalendarEvent[]> {
       endTime:     end,
       type:        item.itemType?.toLowerCase() ?? 'event',
       description: item.notes || '',
-      priority:    'medium',
+      priority:    item.priorityScore == null ? 'medium' : item.priorityScore <= 1 ? 'low' : item.priorityScore >= 3 ? 'high' : 'medium',
     }
   });
 }

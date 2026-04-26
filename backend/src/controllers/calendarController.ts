@@ -16,8 +16,8 @@ export const getCalendarItems = async (req: Request, res: Response) => {
 
 export const createCalendarItem = async (req: Request, res: Response) => {
   try {
-    const { title, itemType, startDate, endDate, location, notes, courseId, weightPercentage } = req.body;
-    
+    const { title, itemType, startDate, endDate, location, notes, courseId, weightPercentage, priorityScore } = req.body;
+
     // Ensure the hardcoded user exists for simplicity
     await prisma.user.upsert({
       where: { id: HARDCODED_USER_ID },
@@ -39,6 +39,7 @@ export const createCalendarItem = async (req: Request, res: Response) => {
         notes,
         courseId,
         weightPercentage,
+        priorityScore,
         userId: HARDCODED_USER_ID
       }
     });

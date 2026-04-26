@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import './Calendar.css'
 import { addEvent, deleteEvent, getEvents } from './services/eventService'
 
-// ─── constants ────────────────────────────────────────────────────────────────
+// constants
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const HOUR_HEIGHT = 60
 const START_HOUR = 0
@@ -26,13 +26,15 @@ const TYPE_COLORS = {
 
 const TYPE_OPTIONS    = ['class', 'assignment', 'exam', 'personal']
 const PRIORITY_OPTIONS = ['low', 'medium', 'high']
-const TAG_OPTIONS     = ['Work', 'Personal', 'Health', 'Study', 'Social']
+const TAG_OPTIONS     = ['class', 'assignment', 'exam', 'personal']
 
-function getWeekDates() {
+// # Returns an array of 7 Date objects for the week at `offset` weeks from today.
+// # offset=0 is the current week, offset=-1 is last week, offset=1 is next week.
+function getWeekDates(offset = 0) {
   const today = new Date()
   const day = (today.getDay() + 6) % 7
   const monday = new Date(today)
-  monday.setDate(today.getDate() - day)
+  monday.setDate(today.getDate() - day + offset * 7)
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
@@ -40,16 +42,17 @@ function getWeekDates() {
   })
 }
 
-// Convert a YYYY-MM-DD date string to the Mon/Tue/… day label for this week
-function dateToWeekDay(dateStr) {
-  const weekDates = getWeekDates()
+// # Takes a YYYY-MM-DD date string and the precomputed weekDates array, returns the matching DAYS label or null.
+function dateToWeekDay(dateStr, weekDates) {
   const idx = weekDates.findIndex(
     (d) => d.toLocaleDateString('en-CA') === dateStr
   )
   return idx >= 0 ? DAYS[idx] : null
 }
 
-// ─── MiniCalendar ─────────────────────────────────────────────────────────────
+// Mini canldendar for side-bar
+// # Highlights today's date with a CSS class. Prev/next buttons shift the cursor by one month.
+// Citation: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 function MiniCalendar() {
   const [cursor, setCursor] = useState(new Date())
   const today = new Date()
@@ -87,7 +90,7 @@ function MiniCalendar() {
   )
 }
 
-// ─── EventDetailModal ──────────────────────────────────────────────────────────
+// Modal to show event details when clicked
 function EventDetailModal({ event, onClose, onDelete }) {
   const fmt = (dt) => dt
     ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -95,7 +98,7 @@ function EventDetailModal({ event, onClose, onDelete }) {
 
   const startFmt = fmt(event.startTime)
   const endFmt   = fmt(event.endTime)
-  const color    = TYPE_COLORS[event.type] || '#6c63ff'
+  const color    = TYPE_COLORS[event.type]
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -127,7 +130,7 @@ function EventDetailModal({ event, onClose, onDelete }) {
         {event.description && (
           <div className="form-row">
             <label>Notes</label>
-            <span style={{ fontSize: 14, color: '#374151' }}>{event.description}</span>
+            <span>{event.description}</span>
           </div>
         )}
 
@@ -140,7 +143,7 @@ function EventDetailModal({ event, onClose, onDelete }) {
   )
 }
 
-// ─── AddEventModal ─────────────────────────────────────────────────────────────
+// Modal for new evnet 
 function AddEventModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
@@ -157,6 +160,7 @@ function AddEventModal({ onClose, onSuccess }) {
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const handleSubmit = async () => {
+    // handle error if the user does not input title or select date 
     if (!form.title.trim()) { setError('Title is required.'); return }
     if (!form.date) { setError('Date is required.'); return }
     setError('')
@@ -290,14 +294,17 @@ function AddEventModal({ onClose, onSuccess }) {
   )
 }
 
-// ─── Calendar (main) ──────────────────────────────────────────────────────────
+// Root component 
+// # Renders the header (add button + search), sidebar (MiniCalendar + tag filter + event list), and the 7-day week grid.
 export default function Calendar() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [activeTags, setActiveTags] = useState([])
   const [events, setEvents] = useState([])
+  const [weekOffset, setWeekOffset] = useState(0)
 
+  // Fetches latest event list from the backend and updates the events 
   const fetchData = async () => {
     try {
       const data = await getEvents()
@@ -309,26 +316,28 @@ export default function Calendar() {
 
   useEffect(() => { fetchData() }, [])
 
+  // Toggles a tag in the activeTags filter list.
   const toggleTagFilter = tag =>
     setActiveTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     )
 
-  // Map events to week-grid format
-  const weekDates = getWeekDates()
+  // Map events to week-grid format for week view
+  const weekDates = getWeekDates(weekOffset)
   const eventsByDay = {}
   DAYS.forEach(d => { eventsByDay[d] = [] })
 
+  // Add event to eventsByDay, mapppin time to calendar location and height
   events.forEach(ev => {
-    const dayLabel = dateToWeekDay(ev.date)
+    const dayLabel = dateToWeekDay(ev.date, weekDates)
     if (!dayLabel) return
     const start = ev.startTime
-    const end   = ev.endTime ?? new Date(start.getTime() + 60 * 60 * 1000) // default 1hr
+    const end   = ev.endTime ?? new Date(start.getTime() + 60 * 60 * 1000) 
     const durationHrs = Math.max((end - start) / (1000 * 60 * 60), 0.5)
     eventsByDay[dayLabel].push({
       id:      ev.id,
       title:   ev.title,
-      top:     Math.max(0, (start.getHours() - START_HOUR) * HOUR_HEIGHT + (start.getMinutes() / 60) * HOUR_HEIGHT),
+      top:     Math.max(0, (start.getHours() - START_HOUR) * HOUR_HEIGHT + (start.getMinutes() / 60) * HOUR_HEIGHT), 
       height:  durationHrs * HOUR_HEIGHT,
       color:   TYPE_COLORS[ev.type] || '#6c63ff',
       tags:    [ev.type],
@@ -336,6 +345,7 @@ export default function Calendar() {
     })
   })
 
+  // Deletes an event using deleteEvent() from eventService, then closes the detail modal and re-fetches
   const handleDelete = async (id) => {
     try {
       await deleteEvent(id)
@@ -345,15 +355,17 @@ export default function Calendar() {
       console.error('Delete failed:', err)
     }
   }
-
+  // Wrapper for main calendar 
+  // Citation: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
   return (
     <div className="cal-wrapper">
       <div className="cal-header">
+        <label>Mason Mate</label>
         <button id="add-event-btn" className="add-btn" onClick={() => setShowModal(true)}>+ Add event</button>
         <div className="search-bar">
           <input
             id="search-events"
-            placeholder="Search events"
+            placeholder="Search your events"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -383,22 +395,17 @@ export default function Calendar() {
 
           <ul className="task-list">
             {events.length === 0 && (
-              <li style={{ opacity: 0.5, fontSize: 12 }}>No events yet — add one!</li>
+              <li className="task-empty">No events</li>
             )}
             {events.map(ev => (
-              <li key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>
-                  <span className="checkbox" />
-                  {ev.title}
-                  <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.6 }}>({ev.date})</span>
+              <li key={ev.id} className="task-item" onClick={() => setSelectedEvent(ev)}>
+                <span className="task-info">
+                  <span className="task-title">{ev.title}</span>
                 </span>
                 <button
                   id={`delete-${ev.id}`}
+                  className="task-delete"
                   onClick={e => { e.stopPropagation(); handleDelete(ev.id) }}
-                  style={{
-                    background: 'none', border: 'none', color: '#ef4444',
-                    cursor: 'pointer', fontSize: 13, padding: '0 4px',
-                  }}
                   title="Delete event"
                 >✕</button>
               </li>
@@ -407,21 +414,14 @@ export default function Calendar() {
         </div>
 
         <div className="week-section">
-          <div className="week-header">
-            <div className="time-gutter-spacer" />
-            {weekDates.map((date, i) => {
-              const isToday = date.toDateString() === new Date().toDateString()
-              return (
-                <div key={i} className="day-label">
-                  <span className="day-name">{DAYS[i]}</span>
-                  <span className={`day-num ${isToday ? 'day-num-today' : ''}`}>{date.getDate()}</span>
-                </div>
-              )
-            })}
+          <div className="week-nav">
+            <button className="week-nav-btn" onClick={() => setWeekOffset(o => o - 1)}>‹</button>
+            <button className="week-nav-btn" onClick={() => setWeekOffset(o => o + 1)}>›</button>
           </div>
 
           <div className="week-scroll">
             <div className="time-gutter">
+              <div className="gutter-corner" />
               {HOURS.map((label, i) => (
                 <div key={i} className="time-slot">
                   <span className="time-label">{label}</span>
@@ -429,8 +429,15 @@ export default function Calendar() {
               ))}
             </div>
             <div className="week-days">
-              {DAYS.map(day => (
+              {DAYS.map((day, i) => {
+                const date = weekDates[i]
+                const isToday = date.toDateString() === new Date().toDateString()
+                return (
                 <div key={day} className="day-col">
+                  <div className="day-label">
+                    <span className="day-name">{DAYS[i]}</span>
+                    <span className={`day-num ${isToday ? 'day-num-today' : ''}`}>{date.getDate()}</span>
+                  </div>
                   <div className="day-events" style={{ height: HOURS.length * HOUR_HEIGHT }}>
                     {HOURS.map((_, j) => (
                       <div key={j} className="hour-line" style={{ top: j * HOUR_HEIGHT }} />
@@ -451,7 +458,8 @@ export default function Calendar() {
                       ))}
                   </div>
                 </div>
-              ))}
+              )
+              })}
             </div>
           </div>
         </div>

@@ -7,7 +7,6 @@
   overflow: hidden;
 }
 
-/* Header */
 .cal-header {
   display: flex;
   align-items: center;
@@ -46,14 +45,12 @@
 }
 .search-icon { font-size: 16px; color: #9ca3af; }
 
-/* Body */
 .cal-body {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* Sidebar */
 .sidebar {
   width: 200px;
   min-width: 200px;
@@ -65,7 +62,6 @@
   overflow-y: auto;
 }
 
-/* Mini Calendar */
 .mini-cal { width: 100%; }
 
 .mini-cal-header {
@@ -85,7 +81,9 @@
   line-height: 1;
 }
 .mini-cal-header button:hover { color: #6c63ff; }
-
+/*
+ * Citation: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/grid-template-columns
+*/
 .mini-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -166,23 +164,62 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
 }
-.task-list li {
+.task-empty {
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 6px 0;
+}
+.task-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #374151;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
 }
-.checkbox {
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid #9ca3af;
-  border-radius: 3px;
-  display: inline-block;
+.task-item:hover { background: #f5f3ff; }
+.task-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
+.task-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.task-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-meta {
+  font-size: 10px;
+  color: #9ca3af;
+}
+.task-delete {
+  background: none;
+  border: none;
+  color: #d1d5db;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.12s;
+}
+.task-delete:hover { color: #ef4444; }
 
 /* Weekly Section */
 .week-section {
@@ -192,20 +229,48 @@
   overflow: hidden;
 }
 
-.week-header {
+.week-nav {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
-  overflow-y: scroll;
-  scrollbar-color: transparent transparent;
 }
-.week-header::-webkit-scrollbar { background: transparent; }
-
-.time-gutter-spacer {
-  width: 56px;
-  flex-shrink: 0;
-  border-right: 1px solid #e5e7eb;
+.week-nav-btn {
+  background: none;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
 }
+.week-nav-btn:hover { border-color: #6c63ff; color: #6c63ff; }
+.week-nav-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  flex: 1;
+  text-align: center;
+}
+.week-nav-today {
+  background: none;
+  border: 1.5px solid #6c63ff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c63ff;
+  cursor: pointer;
+}
+.week-nav-today:hover { background: #6c63ff; color: #fff; }
 
 .week-scroll {
   display: flex;
@@ -215,14 +280,40 @@
   align-items: flex-start;
 }
 
+/*
+ * Sticky gutter for time label.
+*/
 .time-gutter {
   width: 56px;
   flex-shrink: 0;
   position: sticky;
   left: 0;
   background: #fff;
-  z-index: 1;
+  z-index: 3;
   border-right: 1px solid #e5e7eb;
+}
+
+/* 
+ * Spacing to match day label.
+*/
+.gutter-corner {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 4;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gutter-corner::before {
+  content: '';
+  height: 13px;
+}
+.gutter-corner::after {
+  content: '';
+  height: 30px;
 }
 
 .time-slot {
@@ -262,15 +353,17 @@
 }
 
 .day-label {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 8px 0;
   gap: 4px;
-  border-right: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  border-bottom: 1px solid #e5e7eb;
 }
-.day-label:last-child { border-right: none; }
 .day-name {
   font-size: 11px;
   font-weight: 600;
@@ -279,6 +372,11 @@
   color: #9ca3af;
 }
 .day-num {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
   font-weight: 500;
   color: #374151;
@@ -288,11 +386,6 @@
   background: #6c63ff;
   color: #fff;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 14px;
   font-weight: 600;
 }
@@ -444,7 +537,6 @@
 }
 .modal-actions button.danger:hover { background: #ef4444; color: #fff; }
 
-/* Event Detail — priority badge (reuses .form-row for layout) */
 .detail-priority {
   display: inline-block;
   padding: 3px 14px;
