@@ -28,8 +28,8 @@ const TYPE_OPTIONS    = ['class', 'assignment', 'exam', 'personal']
 const PRIORITY_OPTIONS = ['low', 'medium', 'high']
 const TAG_OPTIONS     = ['class', 'assignment', 'exam', 'personal']
 
-// # Returns an array of 7 Date objects for the week at `offset` weeks from today.
-// # offset=0 is the current week, offset=-1 is last week, offset=1 is next week.
+// Returns an array of 7 Date objects for the week at `offset` weeks from today.
+// offset = 0 is the current week, offset = -1 is last week, offset = 1 is next week.
 function getWeekDates(offset = 0) {
   const today = new Date()
   const day = (today.getDay() + 6) % 7
@@ -42,7 +42,7 @@ function getWeekDates(offset = 0) {
   })
 }
 
-// # Takes a YYYY-MM-DD date string and the precomputed weekDates array, returns the matching DAYS label or null.
+// Takes a YYYY-MM-DD date string and the precomputed weekDates array, returns the matching DAYS label or null.
 function dateToWeekDay(dateStr, weekDates) {
   const idx = weekDates.findIndex(
     (d) => d.toLocaleDateString('en-CA') === dateStr
@@ -50,8 +50,9 @@ function dateToWeekDay(dateStr, weekDates) {
   return idx >= 0 ? DAYS[idx] : null
 }
 
-// Mini canldendar for side-bar
-// # Highlights today's date with a CSS class. Prev/next buttons shift the cursor by one month.
+// Mini canldendar for side-bar.
+// Highlights today's date with a CSS class. Prev/next buttons shift the cursor by one month.
+// No functionality on click yet.
 // Citation: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 function MiniCalendar() {
   const [cursor, setCursor] = useState(new Date())
@@ -90,7 +91,8 @@ function MiniCalendar() {
   )
 }
 
-// Modal to show event details when clicked
+// Modal to show event details when clicked.
+// Not editable. 
 function EventDetailModal({ event, onClose, onDelete }) {
   const fmt = (dt) => dt
     ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -143,7 +145,8 @@ function EventDetailModal({ event, onClose, onDelete }) {
   )
 }
 
-// Modal for new evnet 
+// Modal for new event.
+// Calls addEvent to update backend.
 function AddEventModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     title: '',
@@ -294,8 +297,8 @@ function AddEventModal({ onClose, onSuccess }) {
   )
 }
 
-// Root component 
-// # Renders the header (add button + search), sidebar (MiniCalendar + tag filter + event list), and the 7-day week grid.
+// Root component for page.  
+// Renders the header (add button + search), sidebar (MiniCalendar + tag filter + event list), and the 7-day week grid.
 export default function Calendar() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -322,12 +325,12 @@ export default function Calendar() {
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     )
 
-  // Map events to week-grid format for week view
+  // Map events to week-grid format for week view.
   const weekDates = getWeekDates(weekOffset)
   const eventsByDay = {}
   DAYS.forEach(d => { eventsByDay[d] = [] })
 
-  // Add event to eventsByDay, mapppin time to calendar location and height
+  // Add event to eventsByDay, mapppin time to calendar location and height. 
   events.forEach(ev => {
     const dayLabel = dateToWeekDay(ev.date, weekDates)
     if (!dayLabel) return
@@ -345,7 +348,7 @@ export default function Calendar() {
     })
   })
 
-  // Deletes an event using deleteEvent() from eventService, then closes the detail modal and re-fetches
+  // Deletes an event using deleteEvent from eventService, then closes the detail modal and re-fetches.
   const handleDelete = async (id) => {
     try {
       await deleteEvent(id)
@@ -355,7 +358,11 @@ export default function Calendar() {
       console.error('Delete failed:', err)
     }
   }
-  // Wrapper for main calendar 
+  // Wrapper for main calendar.
+  // Includes time gutter and day labels.
+  // Navigate to prev/next week.
+  // Applies filters to events.
+  // Use eventsByDay to render events to correct position.
   // Citation: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
   return (
     <div className="cal-wrapper">
