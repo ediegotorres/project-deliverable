@@ -364,6 +364,7 @@ export default function Calendar() {
   // Applies filters to events.
   // Use eventsByDay to render events to correct position.
   // Citation: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
+  // Citation: https://github.com/vladyslav-soltanovskyi/react-calendar/blob/master/src/components/calendar/components/week-calendar/components/week/Week.tsx
   return (
     <div className="cal-wrapper">
       <div className="cal-header">
