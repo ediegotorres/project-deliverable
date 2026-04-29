@@ -41,6 +41,3 @@ npm run dev
 ```
 
 The application should now be running at `http://localhost:5173`.
-
-## Architecture Note
-This project originally utilized Firebase Firestore for prototyping but has since been fully migrated to a custom Express/Prisma REST API backend with a local SQLite database to support complex prioritization and relational data requirements.
